@@ -1,0 +1,10 @@
+FROM node:10-alpine
+
+ENV src=/usr/src/app
+
+WORKDIR $src
+COPY . ./
+RUN yarn install
+CMD yarn serve
+
+EXPOSE 8080

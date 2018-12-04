@@ -1,5 +1,6 @@
 <template>
   <div class="container d-flex flex-column">
+    <registration />
     <message-list
       class="message-list flex-grow-1"
       :messages="messages"
@@ -14,14 +15,14 @@
 
 <script>
 import { mapState } from "vuex";
-import bFormInput from "bootstrap-vue/es/components/form-input/form-input";
 import MessageList from "@/components/MessageList.vue";
+import Registration from "@/components/Registration.vue";
 
 export default {
   name: "chat-box",
   components: {
     MessageList,
-    bFormInput
+    Registration
   },
   data() {
     return {
@@ -35,6 +36,9 @@ export default {
       }
       this.$socket.send(this.input);
       this.input = "";
+    },
+    close() {
+      this.$refs.registration.hide();
     }
   },
   computed: {
@@ -43,7 +47,7 @@ export default {
     })
   },
   mounted() {
-    this.$connect("ws://localhost:5050/ws");
+    //this.$connect("ws://localhost:5050/ws");
   },
   destroyed() {
     this.$disconnect();

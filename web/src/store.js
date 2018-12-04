@@ -1,5 +1,6 @@
 import Vue from "vue";
 import Vuex from "vuex";
+import axios from "axios";
 
 Vue.use(Vuex);
 
@@ -20,7 +21,12 @@ export default new Vuex.Store({
       onclose: null
     },
     messages: [],
-    author: {}
+    author: {
+      uuid: '',
+      name: '',
+      email: '',
+      avatar: ''
+    }
   },
   getters: {},
   mutations: {
@@ -69,7 +75,24 @@ export default new Vuex.Store({
     },
     SOCKET_ONCLOSE: function(state) {
       state.socket.onclose = true;
+    },
+    UPDATE_USER: function(state, user) {
+      state.author = Object.assign({}, state.author, user);
     }
   },
-  actions: {}
+  actions: {
+    REGISTER_USER: async function({commit}, {username, email, avatar}) {
+      try {
+        let resp = await axios.post(
+          "http://localhost:5050/register",
+          { name: username, email, avatar },
+          //{ headers: { 'Content-Type': 'application/json' } }
+        );
+        commit('UPDATE_USER', resp.data)
+      } catch (error) {
+        return false;
+      }
+      return true;
+    }
+  }
 });

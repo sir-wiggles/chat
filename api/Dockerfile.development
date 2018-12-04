@@ -1,0 +1,17 @@
+FROM golang:1.11.2-alpine3.8
+
+ENV SRC=/go/src/app
+ENV GO111MODULE=off
+
+RUN apk add git
+
+# because I don't like how fresh adds a tmp dir to ./
+RUN echo "tmp_path: /tmp"   > /tmp/fresh.conf
+RUN echo "ignored: vendor" >> /tmp/fresh.conf
+
+WORKDIR $SRC
+COPY  . $SRC
+RUN go get -v ./
+CMD go get github.com/pilu/fresh && fresh -c /tmp/fresh.conf
+
+EXPOSE 5050

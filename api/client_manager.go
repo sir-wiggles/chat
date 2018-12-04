@@ -35,10 +35,8 @@ func init() {
 
 		name = strings.Replace(name, "_", " ", -1)
 		name = strings.Title(name)
-
-		images = append(images, fmt.Sprintf("http://localhost:5050/images/128x128/%s", file.Name()))
-
 		names = append(names, name)
+		images = append(images, fmt.Sprintf("http://localhost:5050/images/128x128/%s", file.Name()))
 	}
 
 	rand.Shuffle(len(images), func(i, j int) {
@@ -73,12 +71,15 @@ func NewClientManager() *ClientManager {
 func (manager ClientManager) start() {
 	for {
 		select {
+
+		// Client joining
 		case client := <-manager.register:
 			log.Printf("+ %s\n", client.id)
 			manager.connections[client] = true
 			message := NewSystemMessage(fmt.Sprintf("%s has joined the conversation", client.username))
 			manager.send(message, client)
 
+		// Client leaving
 		case client := <-manager.unregister:
 			if _, ok := manager.connections[client]; ok {
 				log.Printf("- %s\n", client.id)
@@ -87,6 +88,7 @@ func (manager ClientManager) start() {
 				manager.send(message, client)
 			}
 
+		// Broadcasting
 		case message := <-manager.broadcast:
 			for client := range manager.connections {
 				select {

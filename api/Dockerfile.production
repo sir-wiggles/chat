@@ -1,0 +1,11 @@
+FROM golang:1.11.2-alpine3.8
+
+COPY  . /go/src/github.com/sir-wiggles/chat
+WORKDIR /go/src/github.com/sir-wiggles/chat
+
+RUN go get -v ./
+RUN go install chat
+
+CMD chat
+
+EXPOSE 5050

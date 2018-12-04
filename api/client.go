@@ -19,11 +19,7 @@ type Client struct {
 
 // NewClient returns a new client with the given manager and socket connection
 func NewClient(manager *ClientManager, socket *websocket.Conn, username, avatar string) *Client {
-	id, err := uuid.NewV4()
-	if err != nil {
-		log.Println()
-		return nil
-	}
+	id := uuid.NewV4()
 
 	client := &Client{
 		id:       id.String(),
