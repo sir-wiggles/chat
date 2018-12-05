@@ -9,10 +9,11 @@ services:
     environment:
       PORT: 5050
       HOST: ""
-      POSTGRES_URL: postgres://admin:admin@postgres:5432/chat?sslmode=disable
-      CORS_ALLOWED_HEADERS: Content-Type,X-Requested-With,Origin
-      CORS_ALLOWED_METHODS: GET,HEAD,POST,PUT,OPTIONS
+      POSTGRES_URL: "postgres://admin:admin@postgres:5432/chat?sslmode=disable"
+      CORS_ALLOWED_HEADERS: "Content-Type,X-Requested-With,Origin"
+      CORS_ALLOWED_METHODS: "GET,HEAD,POST,PUT,OPTIONS"
       CORS_ALLOWED_ORIGINS: "*"
+      JWT_SECRET_KEY: "__super.secret.key.123__"
     volumes:
       - ./api:/go/src/app
     depends_on:

@@ -2,7 +2,6 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 )
 
@@ -24,10 +23,6 @@ type HTTPResponse struct {
 	body interface{}
 }
 
-func (r HTTPResponse) Error() string {
-	return ""
-}
-
 // Code returns the http status code from the HTTPResponder
 func (r HTTPResponse) Code() int {
 	return r.code
@@ -40,44 +35,18 @@ func (r HTTPResponse) Body() interface{} {
 
 // NewHTTPResponse returns the generic HTTPResponse with the supplied http status code and body
 func NewHTTPResponse(code int, body interface{}) HTTPResponder {
+	switch body.(type) {
+	case string:
+		body = HTTPResponseBody{body}
+	}
 	return &HTTPResponse{
 		code: code,
 		body: body,
 	}
 }
 
-// MalformedBodyError should be returned when a body is supplied that is malformed
-type MalformedBodyError struct {
-	HTTPResponse
-	Message string `json:"message"`
-}
-
-// NewMalformedBodyError wil return a HTTPResponder with the status code of BadRequest and body
-// specifying the error that happend
-func NewMalformedBodyError(err error) HTTPResponder {
-	return &HTTPResponse{
-		code: http.StatusBadRequest,
-		body: &MalformedBodyError{
-			Message: fmt.Sprintf("Malformed request body: %s", err),
-		},
-	}
-}
-
-// SQLQueryRowError should be returned when QueryRow returns an error
-type SQLQueryRowError struct {
-	HTTPResponse
-	Message string `json:"message"`
-}
-
-// NewSQLQueryRowError will return a HTTPResponder with the status code of InternalServerError and
-// body specifying the error that happened
-func NewSQLQueryRowError(err error) HTTPResponder {
-	return &HTTPResponse{
-		code: http.StatusInternalServerError,
-		body: &SQLQueryRowError{
-			Message: fmt.Sprintf("SQLQueryRowError: %s", err),
-		},
-	}
+type HTTPResponseBody struct {
+	Message interface{} `json:"message"`
 }
 
 // AsJSON wraps a ModifiedHTTPHandler formatting the response as a JSON object

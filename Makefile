@@ -63,6 +63,11 @@ migrate-up:
 migrate-down:
 	docker run -v $(PWD)$(MIGRATION_DIR):/migrations --network chat_default migrate/migrate -path='$(MIGRATION_DIR)/' -database='$(DATABASE)' down $(count)
 
+migrate-force:
+	docker run -v $(PWD)$(MIGRATION_DIR):/migrations --network chat_default migrate/migrate -path='$(MIGRATION_DIR)/' -database='$(DATABASE)' force $(version)
+
+go-get:
+	docker-compose run api go get -v ./...
 # Cross compilation
 build-linux:
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 $(GOBUILD) -o $(BINARY_UNIX) -v

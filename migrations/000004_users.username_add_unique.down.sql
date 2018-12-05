@@ -1,0 +1,3 @@
+BEGIN;
+ALTER TABLE users DROP UNIQUE (username);
+COMMIT;

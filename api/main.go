@@ -22,6 +22,7 @@ var (
 	corsAllowedHeaders = os.Getenv("CORS_ALLOWED_HEADERS")
 	corsAllowedMethods = os.Getenv("CORS_ALLOWED_METHODS")
 	corsAllowedOrigins = os.Getenv("CORS_ALLOWED_ORIGINS")
+	secretSigningKey   = os.Getenv("JWT_SECRET_KEY")
 	endpoint           string
 
 	broadcastChannelBufferSize  = 8
@@ -39,15 +40,16 @@ func main() {
 	}
 
 	var (
-		reg     = NewRegistrationController(db)
+		auth    = NewAuthenticationController(db)
 		mux     = mux.NewRouter()
 		chat    = NewClientManager()
 		address = fmt.Sprintf("%s:%s", host, port)
 	)
 
-	mux.Handle(endpoint, chat).Methods("GET")
+	mux.Handle("/ws", chat).Methods("GET")
 
-	mux.Handle("/register", reg.SetHandler(reg.register)).Methods("POST")
+	mux.Handle("/register", auth.SetHandler(auth.register)).Methods("POST")
+	mux.Handle("/authenticate", auth.SetHandler(auth.authenticate)).Methods("POST")
 
 	mux.PathPrefix("/images/").
 		Handler(http.StripPrefix("/images/", http.FileServer(http.Dir("images"))))
@@ -88,7 +90,6 @@ func postgresConnect(url string) (*sql.DB, error) {
 func flags() {
 	flag.StringVar(&port, "port", port, "port the server will listen on")
 	flag.StringVar(&host, "host", host, "host to serve on")
-	flag.StringVar(&endpoint, "endpoint", "/ws", "the path of the web socket")
 	flag.StringVar(&postgresURL, "postgres", postgresURL, "postgres url")
 	flag.StringVar(&corsAllowedHeaders, "corsAllowedHeaders", corsAllowedHeaders, "headers allowed for cors")
 	flag.StringVar(&corsAllowedMethods, "corsAllowedMethods", corsAllowedMethods, "methods allowed for cors")
