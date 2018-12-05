@@ -14,29 +14,29 @@
 <script>
 export default {
   props: {
-    data: {
-      type: Object,
+            data: {
+                type: Object,
       required: true
     },
     messageColors: {
       type: Object,
       required: true
     },
-    messageStyling: {
+            messageStyling: {
       type: Boolean
-      //required: true
+                //required: true
     }
-  },
+        },
   computed: {
     messageText() {
-      return this.data.text;
-      //const escaped = escapeGoat.escape(this.data.text);
-      //return Autolinker.link(this.messageStyling ? fmt(escaped) : escaped, {
-      //  className: "chatLink",
-      //  truncate: { length: 50, location: "smart" }
-      //});
+                return this.data.text;
+                //const escaped = escapeGoat.escape(this.data.text);
+                //return Autolinker.link(this.messageStyling ? fmt(escaped) : escaped, {
+                //  className: "chatLink",
+                //  truncate: { length: 50, location: "smart" }
+                //});
     }
-  }
+        }
 };
 </script>
 

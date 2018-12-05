@@ -7,13 +7,13 @@ import ChatBox from "@/components/ChatBox.vue";
 
 export default {
   name: "home",
-  components: {
+        components: {
     ChatBox
-  },
+        },
   data() {
-    return {};
+            return {};
   },
-  methods: {}
+        methods: {}
 };
 </script>
 <style scoped lang="stylus"></style>

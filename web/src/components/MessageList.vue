@@ -14,41 +14,41 @@ import Message from "./Message.vue";
 
 export default {
   components: {
-    Message,
+            Message,
     bListGroup
-  },
-  data() {
-    return {
-      previousMessage: null
+        },
+        data() {
+            return {
+                previousMessage: null
     };
   },
-  props: {
+        props: {
     messages: {
       type: Array,
-      required: true
-    }
+                required: true
+            }
   },
-  methods: {
+        methods: {
     scrollDown() {
-      this.$refs.scrollList.scrollTop = this.$refs.scrollList.scrollHeight;
+                this.$refs.scrollList.scrollTop = this.$refs.scrollList.scrollHeight;
     }
   },
-  updated() {
-    this.scrollDown();
+        updated() {
+            this.scrollDown();
   },
-  computed: {}
+        computed: {}
 };
 </script>
 
 <style scoped lang="stylus">
 
 .container
-  border 1px solid grey
-  border-radius: 3px
-  box-shadow 1px 1px 11px grey
+    border 1px solid grey
+    border-radius: 3px
+    box-shadow 1px 1px 11px grey
 
 .message
-  margin 3px 0
+    margin 3px 0
 
 /* width */
 ::-webkit-scrollbar

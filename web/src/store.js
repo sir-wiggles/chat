@@ -22,10 +22,10 @@ export default new Vuex.Store({
     },
     messages: [],
     author: {
-      uuid: '',
-      name: '',
-      email: '',
-      avatar: ''
+      uuid: "",
+      name: "",
+      email: "",
+      avatar: ""
     }
   },
   getters: {},
@@ -78,17 +78,18 @@ export default new Vuex.Store({
     },
     UPDATE_USER: function(state, user) {
       state.author = Object.assign({}, state.author, user);
+      localStorage.username = state.author.name;
     }
   },
   actions: {
-    REGISTER_USER: async function({commit}, {username, email, avatar}) {
+    REGISTER_USER: async function({ commit }, { username, email, avatar }) {
       try {
         let resp = await axios.post(
           "http://localhost:5050/register",
-          { name: username, email, avatar },
+          { name: username, email, avatar }
           //{ headers: { 'Content-Type': 'application/json' } }
         );
-        commit('UPDATE_USER', resp.data)
+        commit("UPDATE_USER", resp.data);
       } catch (error) {
         return false;
       }

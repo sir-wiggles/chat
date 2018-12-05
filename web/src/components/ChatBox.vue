@@ -20,56 +20,56 @@ import Registration from "@/components/Registration.vue";
 
 export default {
   name: "chat-box",
-  components: {
+        components: {
     MessageList,
     Registration
-  },
-  data() {
-    return {
+        },
+        data() {
+            return {
       input: ""
-    };
+            };
   },
-  methods: {
+        methods: {
     send() {
-      if (this.input.trim().length === 0) {
+                if (this.input.trim().length === 0) {
         return;
-      }
+                }
       this.$socket.send(this.input);
       this.input = "";
     },
-    close() {
+            close() {
       this.$refs.registration.hide();
     }
   },
   computed: {
-    ...mapState({
-      messages: state => state.messages
+            ...mapState({
+                messages: state => state.messages
     })
-  },
+        },
   mounted() {
-    //this.$connect("ws://localhost:5050/ws");
+            //this.$connect("ws://localhost:5050/ws");
   },
-  destroyed() {
-    this.$disconnect();
-  }
+        destroyed() {
+            this.$disconnect();
+        }
 };
 </script>
 
 <style scoped lang="stylus">
 
 .message-list
-  overflow scroll
-  overflow-x hidden
-  overflow-y auto
+    overflow scroll
+    overflow-x hidden
+    overflow-y auto
 
-  color: #495057;
-  background-color: #fff;
-  border-color: #80bdff;
-  outline: 0;
-  box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
-  margin 10px 0 0 0
+color #495057
+    background-color #fff
+    border-color #80bdff
+    outline 0
+    box-shadow 0 0 0 0.2rem rgba(0, 123, 255, 0.25)
+    margin 10px 0 0 0
 
 .input
-  margin 10px 0
-  min-height 38px
+    margin 10px 0
+    min-height 38px
 </style>
