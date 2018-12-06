@@ -3,19 +3,19 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
-	"log"
 	"net/http"
 
 	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/sir-wiggles/chat/api/postgres"
 	"golang.org/x/crypto/bcrypt"
 )
 
 type Authentication struct {
-	db      *sql.DB
+	db      postgres.Controller
 	handler ModifiedHTTPHandler
 }
 
-func NewAuthenticationController(db *sql.DB) *Authentication {
+func NewAuthenticationController(db postgres.Controller) *Authentication {
 	return &Authentication{
 		db: db,
 	}
@@ -42,33 +42,34 @@ type authenticateResponse struct {
 }
 
 func (c Authentication) authenticate(w http.ResponseWriter, r *http.Request) HTTPResponder {
+	var err error
 
-	form := authenticateForm{}
+	var form = authenticateForm{}
 	defer r.Body.Close()
 	if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
 		return NewHTTPResponse(http.StatusBadRequest, err)
 	}
 
-	password := ""
-	if err := c.db.QueryRow(queryGetUser, form.Username).Scan(&password); err == sql.ErrNoRows {
-		return NewHTTPResponse(http.StatusUnauthorized, "Invalid credentials")
+	var password string
+	err = c.db.QueryRow(queryGetUser, form.Username).Scan(&password)
+	if err == sql.ErrNoRows {
+		return NewHTTPResponse(http.StatusUnauthorized, "invalid credentials")
 	} else if err != nil {
 		return NewHTTPResponse(http.StatusInternalServerError, err.Error())
 	}
 
-	if err := bcrypt.CompareHashAndPassword([]byte(password), []byte(form.Password)); err != nil {
-		return NewHTTPResponse(http.StatusUnauthorized, err.Error())
+	err = bcrypt.CompareHashAndPassword([]byte(password), []byte(form.Password))
+	if err == bcrypt.ErrMismatchedHashAndPassword {
+		return NewHTTPResponse(http.StatusUnauthorized, "invalid credentials")
+	} else if err != nil {
+		return NewHTTPResponse(http.StatusInternalServerError, err.Error())
 	}
 
-	claims := &jwt.StandardClaims{
-		ExpiresAt: 15000,
-		Issuer:    "test",
-	}
-
-	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
-	ss, err := token.SignedString([]byte(secretSigningKey))
+	ss, err := jwt.NewWithClaims(jwt.SigningMethodHS256, &jwt.StandardClaims{
+		ExpiresAt: jwtExpiresAt,
+		Issuer:    jwtIssuer,
+	}).SignedString([]byte(secretSigningKey))
 	if err != nil {
-		log.Println(err)
 		return NewHTTPResponse(http.StatusInternalServerError, err.Error())
 	}
 
@@ -99,20 +100,19 @@ func (c Authentication) register(w http.ResponseWriter, r *http.Request) HTTPRes
 
 	defer r.Body.Close()
 	if err = json.NewDecoder(r.Body).Decode(&form); err != nil {
-		return NewHTTPResponse(http.StatusBadRequest, err)
+		return NewHTTPResponse(http.StatusBadRequest, err.Error())
 	}
 
 	passwordHash, err := bcrypt.GenerateFromPassword([]byte(form.Password), bcrypt.DefaultCost)
 	if err != nil {
-		return NewHTTPResponse(http.StatusInternalServerError, err)
+		return NewHTTPResponse(http.StatusInternalServerError, err.Error())
 	}
 
 	args := []interface{}{form.Username, form.Email, form.Avatar, passwordHash}
 	dest := []interface{}{&uuid, &username, &email, &avatar}
 
 	if err = c.db.QueryRow(queryCreateUser, args...).Scan(dest...); err != nil {
-		log.Println(err)
-		return NewHTTPResponse(http.StatusInternalServerError, err)
+		return NewHTTPResponse(http.StatusInternalServerError, err.Error())
 	}
 
 	return NewHTTPResponse(http.StatusCreated, &registerResponse{

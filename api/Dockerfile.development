@@ -1,9 +1,9 @@
 FROM golang:1.11.2-alpine3.8
 
-ENV SRC=/go/src/app
-ENV GO111MODULE=off
+ENV SRC=/go/src/github.com/sir-wiggles/chat/api
+ENV GO111MODULE=on
 
-RUN apk add git
+RUN apk add git g++
 
 # because I don't like how fresh adds a tmp dir to ./
 RUN echo "tmp_path: /tmp"   > /tmp/fresh.conf
