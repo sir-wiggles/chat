@@ -1,18 +1,28 @@
-# authenticate
+# global
 http://localhost:5050
 Content-Type: application/json
+
+jwt = eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1dWlkIjoiM2UwYzEyOTEtYjNhNS00NGM3LTg2ZDYtMzM4ZjNiNDg3MGU5IiwiZXhwIjoxNTQ0MDgyMTYwLCJpc3MiOiJtb3AuYnVja2V0In0.HK-vjUYPrPW28DTVLmYUT8Z3vacDhTHZ9bserB0DyPg
+--
+
+--
+# authenticate
 POST /authenticate
 {
     "username": "jeffmgreg",
     "password": "abc123"
 }
 
+--
 # register
-http://localhost:5050
-Content-Type: application/json
 POST /register
 {
     "username": "jeffg3",
     "password": "abc123"
 }
+
+--
+# health
+Authorization: :jwt
+GET /health
 

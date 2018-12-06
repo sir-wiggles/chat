@@ -10,12 +10,14 @@ services:
       PORT: 5050
       HOST: ""
       POSTGRES_URL: "postgres://admin:admin@postgres:5432/chat?sslmode=disable"
-      CORS_ALLOWED_HEADERS: "Content-Type,X-Requested-With,Origin"
+      CORS_ALLOWED_HEADERS: "Content-Type,X-Requested-With,Origin,Authorization"
       CORS_ALLOWED_METHODS: "GET,HEAD,POST,PUT,OPTIONS"
       CORS_ALLOWED_ORIGINS: "*"
       JWT_SECRET_KEY: "__super.secret.key.123__"
+      JWT_ISSUER: "mop.bucket"
+      JWT_EXPIRES_IN_MINUTES: "1"
     volumes:
-      - ./api:/go/src/app
+      - ./api:/go/src/github.com/sir-wiggles/chat/api
     depends_on:
       - postgres
 

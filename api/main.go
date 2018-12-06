@@ -27,7 +27,7 @@ var (
 	secretSigningKey = os.Getenv("JWT_SECRET_KEY")
 	jwtIssuer        = os.Getenv("JWT_ISSUER")
 	jwtExpiresAt     int64
-	_jwtExpiresAt    = os.Getenv("JWT_EXPIRES_AT")
+	_jwtExpiresAt    = os.Getenv("JWT_EXPIRES_IN_MINUTES")
 
 	broadcastChannelBufferSize  = 8
 	registerChannelBufferSize   = 8
@@ -55,6 +55,8 @@ func main() {
 	mux.Handle("/register", auth.SetHandler(auth.register)).Methods("POST")
 	mux.Handle("/authenticate", auth.SetHandler(auth.authenticate)).Methods("POST")
 
+	mux.Handle("/health", AuthenticateRequest(health)).Methods("GET")
+
 	mux.PathPrefix("/images/").
 		Handler(http.StripPrefix("/images/", http.FileServer(http.Dir("images"))))
 
@@ -74,6 +76,10 @@ func main() {
 
 	log.Printf("server listening on %s\n", address)
 	log.Fatal(server.ListenAndServe())
+}
+
+func health(w http.ResponseWriter, r *http.Request) {
+
 }
 
 func flags() {

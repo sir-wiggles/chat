@@ -3,7 +3,9 @@ package main
 import (
 	"database/sql"
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/sir-wiggles/chat/api/postgres"
@@ -41,6 +43,11 @@ type authenticateResponse struct {
 	Token string `json:"token"`
 }
 
+type customJWTClaims struct {
+	UUID string `json:"uuid"`
+	jwt.StandardClaims
+}
+
 func (c Authentication) authenticate(w http.ResponseWriter, r *http.Request) HTTPResponder {
 	var err error
 
@@ -50,8 +57,8 @@ func (c Authentication) authenticate(w http.ResponseWriter, r *http.Request) HTT
 		return NewHTTPResponse(http.StatusBadRequest, err)
 	}
 
-	var password string
-	err = c.db.QueryRow(queryGetUser, form.Username).Scan(&password)
+	var password, uuid string
+	err = c.db.QueryRow(queryGetUserPassword, form.Username).Scan(&password, &uuid)
 	if err == sql.ErrNoRows {
 		return NewHTTPResponse(http.StatusUnauthorized, "invalid credentials")
 	} else if err != nil {
@@ -65,9 +72,12 @@ func (c Authentication) authenticate(w http.ResponseWriter, r *http.Request) HTT
 		return NewHTTPResponse(http.StatusInternalServerError, err.Error())
 	}
 
-	ss, err := jwt.NewWithClaims(jwt.SigningMethodHS256, &jwt.StandardClaims{
-		ExpiresAt: jwtExpiresAt,
-		Issuer:    jwtIssuer,
+	ss, err := jwt.NewWithClaims(jwt.SigningMethodHS256, customJWTClaims{
+		uuid,
+		jwt.StandardClaims{
+			ExpiresAt: time.Now().Add(time.Minute * time.Duration(jwtExpiresAt)).Unix(),
+			Issuer:    jwtIssuer,
+		},
 	}).SignedString([]byte(secretSigningKey))
 	if err != nil {
 		return NewHTTPResponse(http.StatusInternalServerError, err.Error())
@@ -123,9 +133,32 @@ func (c Authentication) register(w http.ResponseWriter, r *http.Request) HTTPRes
 	})
 }
 
-const queryGetUser = `
+func AuthenticateRequest(handler http.HandlerFunc) http.HandlerFunc {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		tokenString := r.Header.Get("Authorization")
+
+		token, err := jwt.ParseWithClaims(tokenString, &customJWTClaims{}, func(token *jwt.Token) (interface{}, error) {
+			return []byte(secretSigningKey), nil
+		})
+		if err != nil {
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+
+		if claims, ok := token.Claims.(*customJWTClaims); ok && token.Valid {
+			fmt.Printf("%v %v\n", claims.UUID, claims.StandardClaims.ExpiresAt)
+		} else {
+			w.WriteHeader(http.StatusForbidden)
+			return
+		}
+
+		handler(w, r)
+	})
+}
+
+const queryGetUserPassword = `
 SELECT
-  password
+  password, uuid
 FROM
   users
 WHERE
@@ -140,3 +173,33 @@ VALUES
 RETURNING
 	uuid, username, email, avatar;
 `
+
+// GetOrCreateUser is a query that will create a user if one does not exist or retrieve an
+// existing one. There are three args in this query: name, email and avatar respectively.
+const queryGetOrCreateUser = `
+WITH row AS (
+INSERT INTO
+	users (name, email, avatar)
+SELECT
+	$1, $2, $3
+WHERE
+	NOT EXISTS (
+		SELECT
+			*
+		FROM
+			users
+		WHERE
+			name = $1
+	) RETURNING *
+)
+SELECT
+	id, uuid, name, email, avatar, FALSE as existing
+FROM
+	row
+UNION
+SELECT
+	id, uuid, name, email, avatar, TRUE as existing
+FROM
+	users
+WHERE
+	name = $1;`
