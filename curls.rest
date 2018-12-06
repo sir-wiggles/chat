@@ -1,0 +1,18 @@
+# authenticate
+http://localhost:5050
+Content-Type: application/json
+POST /authenticate
+{
+    "username": "jeffmgreg",
+    "password": "abc123"
+}
+
+# register
+http://localhost:5050
+Content-Type: application/json
+POST /register
+{
+    "username": "jeffg3",
+    "password": "abc123"
+}
+
