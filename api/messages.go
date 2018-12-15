@@ -30,8 +30,8 @@ func NewMessage(client *Client, text string) *Message {
 	return &Message{
 		Author: &Author{
 			ID:     client.id,
-			Name:   client.username,
-			Avatar: client.avatar,
+			Name:   client.name,
+			Avatar: client.picture,
 		},
 		Text: []string{text},
 		Time: time.Now(),
@@ -57,7 +57,7 @@ func NewInitializeMessage(client *Client, text string) *Message {
 	return &Message{
 		Author: &Author{
 			ID:     client.id,
-			Name:   client.username,
+			Name:   client.name,
 			Avatar: "http://localhost:5050/images/128x128/system.png",
 		},
 		Text: []string{text},

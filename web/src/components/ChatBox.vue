@@ -1,6 +1,5 @@
 <template>
   <div class="container d-flex flex-column">
-    <registration />
     <message-list
       class="message-list flex-grow-1"
       :messages="messages"
@@ -16,42 +15,40 @@
 <script>
 import { mapState } from "vuex";
 import MessageList from "@/components/MessageList.vue";
-import Registration from "@/components/Registration.vue";
 
 export default {
-  name: "chat-box",
-        components: {
-    MessageList,
-    Registration
-        },
-        data() {
-            return {
-      input: ""
-            };
-  },
-        methods: {
-    send() {
-                if (this.input.trim().length === 0) {
-        return;
-                }
-      this.$socket.send(this.input);
-      this.input = "";
+    name: "chat-box",
+    components: {
+        MessageList
     },
-            close() {
-      this.$refs.registration.hide();
-    }
-  },
-  computed: {
-            ...mapState({
-                messages: state => state.messages
-    })
+    data() {
+        return {
+            input: ""
+        };
+    },
+    methods: {
+        send() {
+            if (this.input.trim().length === 0) {
+                return;
+            }
+            this.$socket.send(this.input);
+            this.input = "";
         },
-  mounted() {
-            //this.$connect("ws://localhost:5050/ws");
-  },
-        destroyed() {
-            this.$disconnect();
+        close() {
+            this.$refs.registration.hide();
         }
+    },
+    computed: {
+        ...mapState({
+            messages: state => state.messages
+        })
+    },
+    mounted() {
+        //this.$connect("ws://localhost:5050/ws");
+    },
+    destroyed() {
+        this.$disconnect();
+    }
 };
 </script>
 
@@ -61,6 +58,7 @@ export default {
     overflow scroll
     overflow-x hidden
     overflow-y auto
+    background white
 
 color #495057
     background-color #fff

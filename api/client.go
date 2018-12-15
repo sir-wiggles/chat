@@ -4,30 +4,27 @@ import (
 	"log"
 
 	"github.com/gorilla/websocket"
-	uuid "github.com/satori/go.uuid"
 )
 
 //Client is created for every websocket connection to the server
 type Client struct {
-	id       string
-	username string
-	avatar   string
-	manager  *ClientManager
-	send     chan *Message
-	socket   *websocket.Conn
+	id      string
+	name    string
+	picture string
+	manager *ClientManager
+	send    chan *Message
+	socket  *websocket.Conn
 }
 
 // NewClient returns a new client with the given manager and socket connection
-func NewClient(manager *ClientManager, socket *websocket.Conn, username, avatar string) *Client {
-	id := uuid.NewV4()
-
+func NewClient(manager *ClientManager, socket *websocket.Conn, id, name, picture string) *Client {
 	client := &Client{
-		id:       id.String(),
-		username: username,
-		avatar:   avatar,
-		manager:  manager,
-		send:     make(chan *Message),
-		socket:   socket,
+		id:      id,
+		name:    name,
+		picture: picture,
+		manager: manager,
+		send:    make(chan *Message),
+		socket:  socket,
 	}
 
 	go client.read()
@@ -44,7 +41,7 @@ func (client *Client) read() {
 
 	for {
 		_, data, err := client.socket.ReadMessage()
-		log.Printf("r %s %s\n", client.username, data)
+		log.Printf("r %s %s\n", client.name, data)
 		if err != nil {
 			break
 		}

@@ -1,205 +1,170 @@
 package main
 
 import (
-	"database/sql"
+	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
 	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
 	"github.com/sir-wiggles/chat/api/postgres"
-	"golang.org/x/crypto/bcrypt"
+	"golang.org/x/oauth2"
+	"golang.org/x/oauth2/google"
 )
 
 type Authentication struct {
 	db      postgres.Controller
-	handler ModifiedHTTPHandler
+	handler http.HandlerFunc
+	google  *oauth2.Config
 }
 
 func NewAuthenticationController(db postgres.Controller) *Authentication {
+	googleConfig := &oauth2.Config{
+		ClientID:     googleClientID,
+		ClientSecret: googleClientSecret,
+		RedirectURL:  "postmessage",
+		Scopes: []string{
+			"profile",
+			"email",
+			"https://www.googleapis.com/auth/userinfo.profile",
+		},
+		Endpoint: google.Endpoint,
+	}
+
 	return &Authentication{
-		db: db,
+		db:     db,
+		google: googleConfig,
 	}
 }
 
-func (c Authentication) SetHandler(handler ModifiedHTTPHandler) *Authentication {
+func (c Authentication) SetHandler(handler http.HandlerFunc) *Authentication {
 	return &Authentication{
 		db:      c.db,
+		google:  c.google,
 		handler: handler,
 	}
 }
 
 func (c Authentication) ServeHTTP(w http.ResponseWriter, r *http.Request) {
-	AsJSON(w, c.handler(w, r))
-}
-
-type authenticateForm struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-}
-
-type authenticateResponse struct {
-	Token string `json:"token"`
+	c.handler(w, r)
 }
 
 type customJWTClaims struct {
-	UUID string `json:"uuid"`
 	jwt.StandardClaims
+	UserModel postgres.UserModel `json:"user"`
 }
 
-func (c Authentication) authenticate(w http.ResponseWriter, r *http.Request) HTTPResponder {
-	var err error
-
-	var form = authenticateForm{}
-	defer r.Body.Close()
-	if err := json.NewDecoder(r.Body).Decode(&form); err != nil {
-		return NewHTTPResponse(http.StatusBadRequest, err)
-	}
-
-	var password, uuid string
-	err = c.db.QueryRow(queryGetUserPassword, form.Username).Scan(&password, &uuid)
-	if err == sql.ErrNoRows {
-		return NewHTTPResponse(http.StatusUnauthorized, "invalid credentials")
-	} else if err != nil {
-		return NewHTTPResponse(http.StatusInternalServerError, err.Error())
-	}
-
-	err = bcrypt.CompareHashAndPassword([]byte(password), []byte(form.Password))
-	if err == bcrypt.ErrMismatchedHashAndPassword {
-		return NewHTTPResponse(http.StatusUnauthorized, "invalid credentials")
-	} else if err != nil {
-		return NewHTTPResponse(http.StatusInternalServerError, err.Error())
-	}
-
-	ss, err := jwt.NewWithClaims(jwt.SigningMethodHS256, customJWTClaims{
-		uuid,
-		jwt.StandardClaims{
-			ExpiresAt: time.Now().Add(time.Minute * time.Duration(jwtExpiresAt)).Unix(),
-			Issuer:    jwtIssuer,
-		},
-	}).SignedString([]byte(secretSigningKey))
-	if err != nil {
-		return NewHTTPResponse(http.StatusInternalServerError, err.Error())
-	}
-
-	return NewHTTPResponse(http.StatusOK, &authenticateResponse{ss})
+type GoogleAuthRequest struct {
+	Code        string `json:"code"`
+	RedirectURI string `json:"redirectURI"`
 }
 
-type registerForm struct {
-	Username string `json:"username"`
-	Email    string `json:"email"`
-	Avatar   string `json:"avatar"`
-	Password string `json:"password"`
+type AuthResponse struct {
+	Token     string              `json:"token"`
+	UserModel *postgres.UserModel `json:"user"`
 }
 
-type registerResponse struct {
-	ID       int    `json:"-"`
-	UUID     string `json:"uuid"`
-	Username string `json:"username"`
-	Email    string `json:"email"`
-	Avatar   string `json:"avatar"`
-}
+func (c Authentication) Google(w http.ResponseWriter, r *http.Request) {
 
-func (c Authentication) register(w http.ResponseWriter, r *http.Request) HTTPResponder {
 	var (
-		form                          = registerForm{}
-		uuid, username, email, avatar string
-		err                           error
+		googleAuthRequest = GoogleAuthRequest{}
+		googleUserInfo    = postgres.UserModel{}
 	)
 
 	defer r.Body.Close()
-	if err = json.NewDecoder(r.Body).Decode(&form); err != nil {
-		return NewHTTPResponse(http.StatusBadRequest, err.Error())
+	if err := json.NewDecoder(r.Body).Decode(&googleAuthRequest); err != nil {
+		RespondWithJSON(w, http.StatusInternalServerError, err)
+		return
 	}
 
-	passwordHash, err := bcrypt.GenerateFromPassword([]byte(form.Password), bcrypt.DefaultCost)
+	token, err := c.google.Exchange(oauth2.NoContext, googleAuthRequest.Code)
 	if err != nil {
-		return NewHTTPResponse(http.StatusInternalServerError, err.Error())
+		RespondWithJSON(w, http.StatusUnauthorized, err)
+		return
 	}
 
-	args := []interface{}{form.Username, form.Email, form.Avatar, passwordHash}
-	dest := []interface{}{&uuid, &username, &email, &avatar}
-
-	if err = c.db.QueryRow(queryCreateUser, args...).Scan(dest...); err != nil {
-		return NewHTTPResponse(http.StatusInternalServerError, err.Error())
+	resp, err := http.Get(fmt.Sprintf("%s?access_token=%s", googleUserInfoURL, token.AccessToken))
+	if err != nil {
+		RespondWithJSON(w, http.StatusInternalServerError, err)
 	}
 
-	return NewHTTPResponse(http.StatusCreated, &registerResponse{
-		UUID:     uuid,
-		Username: username,
-		Email:    email,
-		Avatar:   avatar,
-	})
+	defer resp.Body.Close()
+	if err := json.NewDecoder(resp.Body).Decode(&googleUserInfo); err != nil {
+		RespondWithJSON(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	if err := c.db.GetOrCreateUser(&googleUserInfo); err != nil {
+		RespondWithJSON(w, http.StatusInternalServerError, err)
+		return
+	}
+
+	log.Println("googleUserInfo", googleUserInfo)
+
+	claims := customJWTClaims{
+		jwt.StandardClaims{
+			ExpiresAt: time.Now().Add(time.Hour * 24).Unix(),
+			Issuer:    "chat",
+		},
+		googleUserInfo,
+	}
+
+	jwtToken := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	jwtTokenString, err := jwtToken.SignedString([]byte(secretSigningKey))
+	if err != nil {
+		RespondWithJSON(w, http.StatusInternalServerError, err)
+	}
+
+	log.Println("jwtToken", jwtToken)
+
+	authResponse := AuthResponse{Token: jwtTokenString}
+	RespondWithJSON(w, http.StatusOK, authResponse)
+
 }
 
-func AuthenticateRequest(handler http.HandlerFunc) http.HandlerFunc {
+type ContextKey string
+
+const (
+	ContextName    ContextKey = "name"
+	ContextPicture ContextKey = "picture"
+	ContextGID     ContextKey = "gid"
+)
+
+func (c *Authentication) Middleware(handler http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		tokenString := r.Header.Get("Authorization")
+
+		tokenString := r.URL.Query().Get("token")
+		if len(tokenString) == 0 {
+			tokenString = r.Header.Get("Authorization")
+			if len(tokenString) <= 7 {
+				RespondWithJSON(w, http.StatusBadRequest, "invalid token")
+				return
+			}
+			tokenString = tokenString[7:]
+		}
+		log.Println("TokenString: ", tokenString)
 
 		token, err := jwt.ParseWithClaims(tokenString, &customJWTClaims{}, func(token *jwt.Token) (interface{}, error) {
 			return []byte(secretSigningKey), nil
 		})
 		if err != nil {
-			w.WriteHeader(http.StatusForbidden)
+			RespondWithJSON(w, http.StatusForbidden, err)
 			return
 		}
 
-		if claims, ok := token.Claims.(*customJWTClaims); ok && token.Valid {
-			fmt.Printf("%v %v\n", claims.UUID, claims.StandardClaims.ExpiresAt)
-		} else {
-			w.WriteHeader(http.StatusForbidden)
+		if _, ok := token.Claims.(*customJWTClaims); !ok && !token.Valid {
+			RespondWithJSON(w, http.StatusForbidden, "invalid claims")
 			return
 		}
 
-		handler(w, r)
+		claims := token.Claims.(*customJWTClaims)
+		fmt.Println("Claims", claims.UserModel)
+		r = r.WithContext(context.WithValue(r.Context(), ContextName, claims.UserModel.Name))
+		r = r.WithContext(context.WithValue(r.Context(), ContextPicture, claims.UserModel.Picture))
+		r = r.WithContext(context.WithValue(r.Context(), ContextGID, claims.UserModel.GID))
+
+		handler.ServeHTTP(w, r)
 	})
 }
-
-const queryGetUserPassword = `
-SELECT
-  password, uuid
-FROM
-  users
-WHERE
-  username = $1
-`
-
-const queryCreateUser = `
-INSERT INTO
-	users (username, email, avatar, password)
-VALUES
-	($1, $2, $3, $4)
-RETURNING
-	uuid, username, email, avatar;
-`
-
-// GetOrCreateUser is a query that will create a user if one does not exist or retrieve an
-// existing one. There are three args in this query: name, email and avatar respectively.
-const queryGetOrCreateUser = `
-WITH row AS (
-INSERT INTO
-	users (name, email, avatar)
-SELECT
-	$1, $2, $3
-WHERE
-	NOT EXISTS (
-		SELECT
-			*
-		FROM
-			users
-		WHERE
-			name = $1
-	) RETURNING *
-)
-SELECT
-	id, uuid, name, email, avatar, FALSE as existing
-FROM
-	row
-UNION
-SELECT
-	id, uuid, name, email, avatar, TRUE as existing
-FROM
-	users
-WHERE
-	name = $1;`

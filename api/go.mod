@@ -1,7 +1,9 @@
 module github.com/sir-wiggles/chat/api
 
 require (
+	cloud.google.com/go v0.34.0 // indirect
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible
+	github.com/go-chi/chi v3.3.3+incompatible
 	github.com/gorilla/context v1.1.1 // indirect
 	github.com/gorilla/handlers v1.4.0
 	github.com/gorilla/mux v1.6.2
@@ -15,5 +17,7 @@ require (
 	github.com/pilu/fresh v0.0.0-20170301142741-9c0092493eff // indirect
 	github.com/satori/go.uuid v1.2.0
 	golang.org/x/crypto v0.0.0-20181203042331-505ab145d0a9
+	golang.org/x/net v0.0.0-20181207154023-610586996380 // indirect
+	golang.org/x/oauth2 v0.0.0-20181203162652-d668ce993890
 	gopkg.in/check.v1 v1.0.0-20180628173108-788fd7840127 // indirect
 )

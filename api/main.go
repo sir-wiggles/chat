@@ -1,8 +1,11 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"flag"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -15,6 +18,30 @@ import (
 	_ "github.com/lib/pq"
 	"github.com/sir-wiggles/chat/api/postgres"
 )
+
+func init() {
+
+	data, err := ioutil.ReadFile("./oauth.json")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	dataReader := bytes.NewReader(data)
+
+	clientInfo := struct {
+		ID     string `json:"client_id"`
+		Secret string `json:"client_secret"`
+	}{}
+
+	err = json.NewDecoder(dataReader).Decode(&clientInfo)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	googleClientID = clientInfo.ID
+	googleClientSecret = clientInfo.Secret
+
+}
 
 var (
 	port               = os.Getenv("PORT")
@@ -32,6 +59,11 @@ var (
 	broadcastChannelBufferSize  = 8
 	registerChannelBufferSize   = 8
 	unregisterChannelBufferSize = 8
+
+	googleClientID     string
+	googleClientSecret string
+
+	googleUserInfoURL = "https://www.googleapis.com/oauth2/v2/userinfo"
 )
 
 func main() {
@@ -45,26 +77,27 @@ func main() {
 
 	var (
 		auth    = NewAuthenticationController(db)
-		mux     = mux.NewRouter()
+		router  = mux.NewRouter()
 		chat    = NewClientManager()
 		address = fmt.Sprintf("%s:%s", host, port)
 	)
 
-	mux.Handle("/ws", chat).Methods("GET")
+	router.PathPrefix("/images/").Handler(http.FileServer(http.Dir(".")))
+	router.PathPrefix("/static/").Handler(http.FileServer(http.Dir(".")))
 
-	mux.Handle("/register", auth.SetHandler(auth.register)).Methods("POST")
-	mux.Handle("/authenticate", auth.SetHandler(auth.authenticate)).Methods("POST")
+	authR := router.NewRoute().PathPrefix("/auth").Methods("POST").Subrouter()
+	authR.Handle("/google", auth.SetHandler(auth.Google))
 
-	mux.Handle("/health", AuthenticateRequest(health)).Methods("GET")
-
-	mux.PathPrefix("/images/").
-		Handler(http.StripPrefix("/images/", http.FileServer(http.Dir("images"))))
+	apiR := router.NewRoute().PathPrefix("/api").Subrouter()
+	apiR.Use(auth.Middleware)
+	apiR.Handle("/ws", chat).Methods("GET").Queries("token", "{token}")
+	apiR.HandleFunc("/health", health).Methods("GET")
 
 	var headersOk = handlers.AllowedHeaders(strings.Split(corsAllowedHeaders, ","))
 	var methodsOk = handlers.AllowedMethods(strings.Split(corsAllowedMethods, ","))
 	var originsOk = handlers.AllowedOrigins(strings.Split(corsAllowedOrigins, ","))
 
-	var handler = handlers.LoggingHandler(os.Stdout, mux)
+	var handler = handlers.LoggingHandler(os.Stdout, router)
 	handler = handlers.CORS(headersOk, originsOk, methodsOk)(handler)
 
 	var server = http.Server{
@@ -74,12 +107,12 @@ func main() {
 		WriteTimeout: time.Second * 10,
 	}
 
-	log.Printf("server listening on %s\n", address)
+	log.Printf("server listening on %s", address)
 	log.Fatal(server.ListenAndServe())
 }
 
 func health(w http.ResponseWriter, r *http.Request) {
-
+	w.WriteHeader(http.StatusOK)
 }
 
 func flags() {
@@ -91,7 +124,6 @@ func flags() {
 	flag.StringVar(&corsAllowedHeaders, "corsAllowedHeaders", corsAllowedHeaders, "headers allowed for cors")
 	flag.StringVar(&corsAllowedMethods, "corsAllowedMethods", corsAllowedMethods, "methods allowed for cors")
 	flag.StringVar(&corsAllowedOrigins, "corsAllowedOrigins", corsAllowedOrigins, "origins allowed for cors")
-
 	flag.StringVar(&secretSigningKey, "jwtSecretKey", secretSigningKey, "secret for jwt token signing")
 	flag.StringVar(&jwtIssuer, "jwtIssuer", jwtIssuer, "issuer of the jwt token")
 

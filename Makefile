@@ -12,6 +12,9 @@ MIGRATION_DIR=/migrations
 DATABASE=postgres://admin:admin@postgres:5432/chat?sslmode=disable
 POSTGRES_SERVICE_NAME=postgres
 
+SERVICES = api web
+DOCKER_BUILD_TARGETS = $(foreach service, $(SERVICES), docker-build-$(service))
+
 PROJECT_NAME=chat
 
 all: test build
@@ -30,6 +33,13 @@ run:
 deps:
 	$(GOGET) .
 
+.PHONY: docker-build $(DOCKER_BUILD_TARGETS)
+docker-build: $(DOCKER_BUILD_TARGETS)
+
+$(DOCKER_BUILD_TARGETS):
+	docker-compose build $(subst docker-build-,,$@)
+
+
 up:
 	docker-compose up -d postgres
 	docker-compose up api web
@@ -38,7 +48,7 @@ api-up:
 	docker-compose up api
 
 web-up:
-	docker-compose up -d web
+	docker-compose up web
 
 psql:
 ifeq ($(shell docker-compose ps | grep $(PROJECT_NAME)_$(POSTGRES_SERVICE_NAME) | wc -l), 0)
@@ -46,13 +56,7 @@ ifeq ($(shell docker-compose ps | grep $(PROJECT_NAME)_$(POSTGRES_SERVICE_NAME) 
 endif
 	docker-compose exec $(POSTGRES_SERVICE_NAME) psql -U admin -h localhost -d chat
 
-docker-build: docker-build-api docker-build-web
 
-docker-build-api:
-	docker-compose build api
-
-docker-build-web:
-	docker-compose build api
 
 migrate-create:
 	migrate create -ext sql -dir $(MIGRATION_DIR) -seq $(name)

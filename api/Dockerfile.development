@@ -1,6 +1,6 @@
 FROM golang:1.11.2-alpine3.8
 
-ENV SRC=/go/src/github.com/sir-wiggles/chat/api
+ENV SRC=/app
 ENV GO111MODULE=on
 
 RUN apk add git g++
@@ -10,8 +10,6 @@ RUN echo "tmp_path: /tmp"   > /tmp/fresh.conf
 RUN echo "ignored: vendor" >> /tmp/fresh.conf
 
 WORKDIR $SRC
-COPY  . $SRC
-RUN go get -v ./
 CMD go get github.com/pilu/fresh && fresh -c /tmp/fresh.conf
 
 EXPOSE 5050

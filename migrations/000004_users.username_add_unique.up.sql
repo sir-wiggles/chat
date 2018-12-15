@@ -1,3 +1,0 @@
-BEGIN;
-ALTER TABLE users ADD UNIQUE (username);
-COMMIT;

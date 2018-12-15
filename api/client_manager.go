@@ -2,49 +2,11 @@ package main
 
 import (
 	"fmt"
-	"io/ioutil"
 	"log"
-	"math/rand"
 	"net/http"
-	"strings"
 
 	"github.com/gorilla/websocket"
 )
-
-var (
-	images       = make([]string, 0, 10)
-	names        = make([]string, 0, 10)
-	clientCount  int
-	greetingText = "Welcom %s!"
-)
-
-func init() {
-	listing, err := ioutil.ReadDir("./images/128x128/")
-	if err != nil {
-		log.Println("failed to list images", err)
-	}
-
-	for _, file := range listing {
-
-		parts := strings.Split(file.Name(), ".")
-		name := parts[0]
-
-		if name == "system" {
-			continue
-		}
-
-		name = strings.Replace(name, "_", " ", -1)
-		name = strings.Title(name)
-		names = append(names, name)
-		images = append(images, fmt.Sprintf("http://localhost:5050/images/128x128/%s", file.Name()))
-	}
-
-	rand.Shuffle(len(images), func(i, j int) {
-		images[i], images[j] = images[j], images[i]
-		names[i], names[j] = names[j], names[i]
-	})
-
-}
 
 // ClientManager manages all clients on the server
 type ClientManager struct {
@@ -76,7 +38,7 @@ func (manager ClientManager) start() {
 		case client := <-manager.register:
 			log.Printf("+ %s\n", client.id)
 			manager.connections[client] = true
-			message := NewSystemMessage(fmt.Sprintf("%s has joined the conversation", client.username))
+			message := NewSystemMessage(fmt.Sprintf("%s has joined the conversation", client.name))
 			manager.send(message, client)
 
 		// Client leaving
@@ -84,7 +46,7 @@ func (manager ClientManager) start() {
 			if _, ok := manager.connections[client]; ok {
 				log.Printf("- %s\n", client.id)
 				delete(manager.connections, client)
-				message := NewSystemMessage(fmt.Sprintf("%s has left the conversation", client.username))
+				message := NewSystemMessage(fmt.Sprintf("%s has left the conversation", client.name))
 				manager.send(message, client)
 			}
 
@@ -125,15 +87,15 @@ func (manager ClientManager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	index := clientCount % len(names)
+	name := r.Context().Value(ContextName)
+	log.Println(name)
+	picture := r.Context().Value(ContextPicture).(string)
+	log.Println(picture)
+	gid := r.Context().Value(ContextGID).(string)
+	log.Println(gid)
 
-	// TODO: Atomic ???
-	clientCount++
-	avatar := images[index]
-	author := names[index]
-
-	client := NewClient(&manager, conn, author, avatar)
+	client := NewClient(&manager, conn, gid, name.(string), picture)
 	manager.register <- client
 
-	conn.WriteJSON(NewInitializeMessage(client, fmt.Sprintf(greetingText, client.username)))
+	conn.WriteJSON(NewInitializeMessage(client, fmt.Sprintf("Welcome %s", client.name)))
 }

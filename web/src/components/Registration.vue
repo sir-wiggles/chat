@@ -9,12 +9,8 @@
                 />
         </div>
         <div class="group d-flex">
-            <label class="label" :for="email">Email</label>
-            <b-form-input :id="email" v-model="email"/>
-        </div>
-        <div class="group d-flex">
-            <label class="label" :for="avatar">Avatar</label>
-            <b-form-input :id="avatar" v-model="avatar"/>
+            <label class="label" :for="password">Password</label>
+            <b-form-input :id="password" v-model="password" type="password"/>
         </div>
         <b-btn class="mt-3" @click="register">Go</b-btn>
     </b-modal>
@@ -26,8 +22,7 @@ export default {
     components: {},
     data() {
         return {
-            avatar: "",
-            email: "",
+            password: "",
             username: ""
         };
     },
@@ -36,14 +31,15 @@ export default {
             if (this.usernameState) {
                 let payload = {
                     username: this.username,
-                    email: this.email,
-                    avatar: this.avatar
+                    password: this.password
                 };
-                this.$store.dispatch("REGISTER_USER", payload).then(resp => {
-                    if (resp === true) {
-                        this.$refs.registration.hide();
-                    }
-                });
+                this.$store
+                    .dispatch("AUTHENTICATE_USER", payload)
+                    .then(resp => {
+                        if (resp === true) {
+                            this.$refs.registration.hide();
+                        }
+                    });
             }
         }
     },
@@ -57,8 +53,9 @@ export default {
     },
     mounted() {
         if (localStorage.username && localStorage.username.length > 0) {
-            this.$store.dispatch("REGISTER_USER", {
-                username: localStorage.username
+            this.$store.dispatch("AUTHENTICATE_USER", {
+                username: localStorage.username,
+                password: localStorage.password
             });
         } else {
             this.$refs.registration.show();
