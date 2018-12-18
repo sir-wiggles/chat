@@ -1,8 +1,6 @@
 package main
 
 import (
-	"log"
-
 	"github.com/gorilla/websocket"
 )
 
@@ -41,7 +39,7 @@ func (client *Client) read() {
 
 	for {
 		_, data, err := client.socket.ReadMessage()
-		log.Printf("r %s %s\n", client.name, data)
+		//log.Printf("r %s %s\n", client.name, data)
 		if err != nil {
 			break
 		}
@@ -57,7 +55,7 @@ func (client *Client) write() {
 	for {
 		select {
 		case message, ok := <-client.send:
-			log.Printf("w %s %s\n", client.id, message)
+			//log.Printf("w %s %s\n", client.id, message)
 			if !ok {
 				client.socket.WriteMessage(websocket.CloseMessage, []byte{})
 				return

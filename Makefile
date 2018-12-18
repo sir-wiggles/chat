@@ -57,6 +57,10 @@ endif
 	docker-compose exec $(POSTGRES_SERVICE_NAME) psql -U admin -h localhost -d chat
 
 
+build-web:
+	rm -rf ./api/static
+	cd web && yarn build
+	mv ./web/dist ./api/static/
 
 migrate-create:
 	migrate create -ext sql -dir $(MIGRATION_DIR) -seq $(name)

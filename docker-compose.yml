@@ -12,6 +12,7 @@ services:
       PORT: 5050
       HOST: ""
       POSTGRES_URL: "postgres://admin:admin@postgres:5432/chat?sslmode=disable"
+      CASSANDRA_URL: "cassandra"
       CORS_ALLOWED_HEADERS: "Content-Type,X-Requested-With,Origin,Authorization"
       CORS_ALLOWED_METHODS: "GET,HEAD,POST,PUT,OPTIONS"
       CORS_ALLOWED_ORIGINS: "*"
@@ -30,6 +31,8 @@ services:
       dockerfile: Dockerfile.development
     ports:
       - "8080:8080"
+    environment:
+      BASE_URL: "/static"
     volumes:
       - ./web:/usr/src/app
       - /usr/src/app/node_modules
@@ -47,7 +50,31 @@ services:
       POSTGRES_USER: admin
       POSTGRES_PASS: admin
 
+  #cassandra-1:
+  #  image: cassandra:3.11.3
+  #  ports:
+  #    - "9042:9042"
+  #  volumes:
+  #    - cassandra-data:/var/lib/cassandra
+
+  cassandra-seed:
+    container_name: cassandra-seed-node
+    image: cassandra:3.11.3
+    ports:
+      - "9042:9042"   # Native transport
+      - "7199:7199"   # JMX
+      - "9160:9160"   # Thrift clients
+
+  cassandra-node-1:
+    image: cassandra:3.11.3
+    command: /bin/bash -c "echo 'Waiting for seed node' && sleep 30 && /docker-entrypoint.sh cassandra -f"
+    environment:
+      - "CASSANDRA_SEEDS=cassandra-seed-node"
+    depends_on:
+      - "cassandra-seed"
+
+
 volumes:
   pg-data:
-
+  cassandra-data:
   modules:

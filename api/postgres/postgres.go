@@ -23,8 +23,8 @@ type Postgres struct {
 	conn *sql.DB
 }
 
-// NewPostgres creates a new database connection that implements the Postgreser interface
-func NewPostgres(url string) (*Postgres, error) {
+// New creates a new database connection that implements the Postgreser interface
+func New(url string) (*Postgres, error) {
 	conn, err := sql.Open("postgres", url)
 	if err != nil {
 		return nil, err

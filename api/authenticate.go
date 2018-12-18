@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"log"
 	"net/http"
 	"time"
 
@@ -101,8 +100,6 @@ func (c Authentication) Google(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	log.Println("googleUserInfo", googleUserInfo)
-
 	claims := customJWTClaims{
 		jwt.StandardClaims{
 			ExpiresAt: time.Now().Add(time.Hour * 24).Unix(),
@@ -116,8 +113,6 @@ func (c Authentication) Google(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		RespondWithJSON(w, http.StatusInternalServerError, err)
 	}
-
-	log.Println("jwtToken", jwtToken)
 
 	authResponse := AuthResponse{Token: jwtTokenString}
 	RespondWithJSON(w, http.StatusOK, authResponse)
@@ -144,7 +139,6 @@ func (c *Authentication) Middleware(handler http.Handler) http.Handler {
 			}
 			tokenString = tokenString[7:]
 		}
-		log.Println("TokenString: ", tokenString)
 
 		token, err := jwt.ParseWithClaims(tokenString, &customJWTClaims{}, func(token *jwt.Token) (interface{}, error) {
 			return []byte(secretSigningKey), nil

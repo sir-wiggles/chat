@@ -14,6 +14,11 @@ export default {
         return {};
     },
     methods: {}
+    //beforeCreate() {
+    //    if (this.$store.state.auth.token.length) {
+    //        this.$store.dispatch("CHECK_TOKEN");
+    //    }
+    //}
 };
 </script>
 <style>

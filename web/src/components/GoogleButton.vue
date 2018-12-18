@@ -20,7 +20,7 @@ export default {
         return {
             config: {
                 clientId:
-                    "112260909295-hoqpplthnjvcrd0j38kfctdl2h58eh7u.apps.googleusercontent.com",
+                    "112260909295-mtovbmtnoc2r3gqhsipmjfcof8ik7uvj.apps.googleusercontent.com",
                 scope: "https://www.googleapis.com/auth/userinfo.profile",
                 response_type: "code"
             },
@@ -77,6 +77,7 @@ export default {
         },
 
         authorize(gapi, prompt) {
+            this.$log.debug("authorizing");
             return new Promise((resolve, reject) => {
                 this.$data.config.prompt = prompt;
                 gapi.authorize(this.$data.config, function(response) {
@@ -89,8 +90,10 @@ export default {
         },
 
         waitForGapi() {
+            this.$log.debug("waiting for gapi");
             return new Promise(resolve => {
                 setTimeout(() => {
+                    this.$log.debug("...");
                     if (window.gapi.auth2) {
                         resolve(window.gapi.auth2);
                     } else {
@@ -105,6 +108,7 @@ export default {
             this.$data.loading = true;
             this.waitForGapi()
                 .then(gapi => {
+                    this.$log.debug("gapi initialized");
                     return this.authorize(gapi, "none");
                 })
                 .then(({ code }) => {
@@ -148,7 +152,13 @@ export default {
     },
 
     beforeMount() {
-        this.autoLogin();
+        this.$store.dispatch("CHECK_TOKEN").then(valid => {
+            if (!valid) {
+                return this.autoLogin();
+            } else {
+                this.$router.push({ name: "home" });
+            }
+        });
     }
 };
 </script>

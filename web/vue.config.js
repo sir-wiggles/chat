@@ -1,8 +1,13 @@
 module.exports = {
+    baseUrl: "/",
+
+    // where to output built files
+    outputDir: "dist",
     devServer: {
         proxy: {
-            "/auth": {
-                target: "http://api:5050"
+            "/*": {
+                target: "http://api:5050",
+                ws: true
             }
         }
     }

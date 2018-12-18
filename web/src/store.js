@@ -28,12 +28,16 @@ export default new Vuex.Store({
             avatar: ""
         },
         auth: {
-            token: ""
+            token: window.localStorage.getItem("token"),
+            valid: false
         }
     },
     getters: {
         LOGGED_IN: function(state) {
-            return state.auth.token.length > 0;
+            return state.auth.valid;
+        },
+        AUTH_TOKEN: function(state) {
+            return state.auth.token;
         }
     },
     mutations: {
@@ -87,11 +91,23 @@ export default new Vuex.Store({
             state.socket.onclose = true;
         },
         OAUTH2_SET_TOKEN: function(state, { token }) {
-            state.auth.token = `Bearer ${token}`;
+            if (token) {
+                state.auth.valid = true;
+                state.auth.token = `Bearer ${token}`;
+                window.localStorage.setItem("token", state.auth.token);
+            } else {
+                state.auth.valid = false;
+                state.auth.token = "";
+                window.localStorage.removeItem("token", state.auth.token);
+            }
+        },
+        OAUTH2_TOKEN_STATE: function(state, valid) {
+            state.auth.valid = valid;
         }
     },
     actions: {
         OAUTH2_GET_TOKEN: function({ commit }, code) {
+            this.$log.debug("calling api server to exchange token");
             return axios
                 .post("/auth/google", {
                     code: code,
@@ -102,6 +118,22 @@ export default new Vuex.Store({
                 })
                 .catch(error => {
                     this.$log.error(`OAUTH2_GET_TOKEN ${error}`);
+                });
+        },
+        CHECK_TOKEN: function({ commit, getters }) {
+            return axios
+                .get("/api/health", {
+                    headers: {
+                        Authorization: getters.AUTH_TOKEN
+                    }
+                })
+                .then(() => {
+                    commit("OAUTH2_TOKEN_STATE", true);
+                    return true;
+                })
+                .catch(() => {
+                    commit("OAUTH2_SET_TOKEN", "");
+                    return false;
                 });
         }
     }

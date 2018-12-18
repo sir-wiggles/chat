@@ -6,10 +6,12 @@ import (
 	"net/http"
 
 	"github.com/gorilla/websocket"
+	"github.com/sir-wiggles/chat/api/cassandra"
 )
 
 // ClientManager manages all clients on the server
 type ClientManager struct {
+	cassandra   cassandra.Controller
 	connections map[*Client]bool
 	broadcast   chan *Message
 	register    chan *Client
@@ -17,8 +19,9 @@ type ClientManager struct {
 }
 
 // NewClientManager creates a new ClientManager and starts the manager loop
-func NewClientManager() *ClientManager {
+func NewClientManager(cass cassandra.Controller) *ClientManager {
 	manager := &ClientManager{
+		cassandra:   cass,
 		connections: make(map[*Client]bool),
 		broadcast:   make(chan *Message, broadcastChannelBufferSize),
 		register:    make(chan *Client, registerChannelBufferSize),
@@ -36,7 +39,7 @@ func (manager ClientManager) start() {
 
 		// Client joining
 		case client := <-manager.register:
-			log.Printf("+ %s\n", client.id)
+			//log.Printf("+ %s\n", client.id)
 			manager.connections[client] = true
 			message := NewSystemMessage(fmt.Sprintf("%s has joined the conversation", client.name))
 			manager.send(message, client)
@@ -44,7 +47,7 @@ func (manager ClientManager) start() {
 		// Client leaving
 		case client := <-manager.unregister:
 			if _, ok := manager.connections[client]; ok {
-				log.Printf("- %s\n", client.id)
+				//log.Printf("- %s\n", client.id)
 				delete(manager.connections, client)
 				message := NewSystemMessage(fmt.Sprintf("%s has left the conversation", client.name))
 				manager.send(message, client)
@@ -52,6 +55,7 @@ func (manager ClientManager) start() {
 
 		// Broadcasting
 		case message := <-manager.broadcast:
+			manager.cassandra.Log(message.Author.Name, message.Text[0])
 			for client := range manager.connections {
 				select {
 				case client.send <- message:
@@ -67,7 +71,7 @@ func (manager ClientManager) start() {
 func (manager ClientManager) send(message *Message, ignore *Client) {
 	for client := range manager.connections {
 		if client.id != ignore.id {
-			log.Printf("  %s > %s | %s\n", ignore.id, client.id, message)
+			//log.Printf("  %s > %s | %s\n", ignore.id, client.id, message)
 			client.send <- message
 		}
 	}
@@ -88,11 +92,8 @@ func (manager ClientManager) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 
 	name := r.Context().Value(ContextName)
-	log.Println(name)
 	picture := r.Context().Value(ContextPicture).(string)
-	log.Println(picture)
 	gid := r.Context().Value(ContextGID).(string)
-	log.Println(gid)
 
 	client := NewClient(&manager, conn, gid, name.(string), picture)
 	manager.register <- client
