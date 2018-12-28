@@ -13,68 +13,37 @@ type Channel struct {
 	database DatabaseController
 }
 
-const UUIDPattern = `[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}`
-
 // Register initializes the given router with user related routes returning the sub router.
-func (c *Channel) Register(router *mux.Router) *mux.Router {
-	//sub := router.NewRoute().PathPrefix("/channel").Subrouter()
+func (c *Channel) Register(router *mux.Router) {
 
 	/*
 	 *PUT    /channel                                        -- Create a channel
+	 */
+	sub := router.NewRoute().PathPrefix("/channel").Subrouter()
+	sub.Path("/").Handler(c.setHandler(c.CreateChannel)).Methods("PUT")
+
+	/*
 	 *PUT    /channel/{channel_id}/users 					 -- Add one or more users to a channel
 	 *DELETE /channel/{channel_id}/users                     -- Delete one or more users in a channel
 	 *GET    /channel/{channel_id}/users					 -- Get all the users in a channel
 	 *GET    /channel/{channel_id}/messages?limit=N&offset=M -- Get message in a channel
 	 */
-
-	// Create a channel
-	//sub.
-	//    Path("/").
-	//    Handler(c.setHandler(c.CreateChannel)).
-	//    Methods("PUT")
-
-	// =============================================
-
-	router.
-		Path(fmt.Sprintf("/channel/{cid:%s}", UUIDPattern)).
-		Handler(c.setHandler(c.CreateChannel)).
-		Methods("PUT")
-
-	// Add one or more users to a channel
-	router.
-		Path(fmt.Sprintf("/channel/{cid:%s}/users", UUIDPattern)).
-		Handler(c.setHandler(c.AddUsers)).
-		Methods("PUT")
-
-	// Get all users in a channel
-	router.
-		Path(fmt.Sprintf("/channel/{cid:%s}/users", UUIDPattern)).
-		Handler(c.setHandler(c.ListUsers)).
-		Methods("GET")
-
-	// Delete one or more users in a channel
-	router.
-		Path(fmt.Sprintf("/channel/{cid:%s}/users", UUIDPattern)).
-		Handler(c.setHandler(c.DeleteUsers)).
-		Methods("DELETE")
-
-	// Gets messages for a channel
-	router.
-		Path(fmt.Sprintf("/channel/{cid:%s}/messages", UUIDPattern)).
-		Handler(c.setHandler(c.Messages)).
-		Methods("GET")
-
-	return router
+	sub = sub.PathPrefix(fmt.Sprintf("/{cid:%s}", UUIDPattern)).Subrouter()
+	sub.Path("/users").Handler(c.setHandler(c.AddUsers)).Methods("PUT")
+	sub.Path("/users").Handler(c.setHandler(c.ListUsers)).Methods("GET")
+	sub.Path("/users").Handler(c.setHandler(c.DeleteUsers)).Methods("DELETE")
+	sub.Path("/messages").Handler(c.setHandler(c.Messages)).Methods("GET")
 }
 
 func (c *Channel) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	c.Handler(w, r)
 }
 
-func (c *Channel) setHandler(h http.HandlerFunc) *Channel {
-	u := c
-	u.Handler = h
-	return u
+// setHandler makes a copy of the controller and sets the handler to the given handler
+func (c Channel) setHandler(h http.HandlerFunc) http.Handler {
+	n := c
+	n.Handler = h
+	return &n
 }
 
 type addChannelPayload struct {
@@ -154,27 +123,24 @@ type listUsersPayload struct {
 // ListUsers lists all users in a channel
 func (c *Channel) ListUsers(w http.ResponseWriter, r *http.Request) {
 
-	w.Write([]byte("OK"))
-	return
+	var (
+		payload = &listUsersPayload{}
+		rw      = w.(*ResponseWriter)
+	)
+	if err := ValidateBody(payload, r.Body); err != nil {
+		rw.JSON(err)
+		return
+	}
 
-	//var (
-	//    payload = &listUsersPayload{}
-	//    rw      = w.(*ResponseWriter)
-	//)
-	//if err := ValidateBody(payload, r.Body); err != nil {
-	//    rw.JSON(err)
-	//    return
-	//}
+	var info = &ChannelInfo{
+		ID: payload.ID,
+	}
 
-	//var info = &ChannelInfo{
-	//    ID: payload.ID,
-	//}
-
-	//if err := c.database.ListUsersInChannel(info); err != nil {
-	//    rw.JSON(err)
-	//    return
-	//}
-	//rw.JSON(info)
+	if err := c.database.ListUsersInChannel(info); err != nil {
+		rw.JSON(err)
+		return
+	}
+	rw.JSON(info)
 }
 
 type deleteUsersPayload struct {

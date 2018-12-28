@@ -39,6 +39,8 @@ func (w *ResponseWriter) JSON(v interface{}, status ...int) error {
 		code = status[0]
 	}
 
+	log.Printf("%T", v)
+
 	switch v.(type) {
 	case string:
 		v = struct {

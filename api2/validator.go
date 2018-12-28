@@ -28,10 +28,11 @@ func init() {
 func ValidateBody(payload interface{}, body io.Reader) error {
 
 	err := json.NewDecoder(body).Decode(payload)
-	if err != nil {
+	// request.Body is empty then we'll get an EOF, we'll let the validator handle this case
+	if err.Error() == "EOF" {
+	} else if err != nil {
 		return err
 	}
 
 	return validate.Struct(payload)
-
 }

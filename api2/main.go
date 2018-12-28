@@ -18,6 +18,9 @@ var (
 	keyspace string
 )
 
+// UUIDPattern used to match UUID patterns in urls
+const UUIDPattern = "[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
+
 func init() {
 	getHost()
 	getPort()
@@ -28,24 +31,21 @@ func main() {
 
 	var (
 		address = fmt.Sprintf("%s:%s", host, port)
-		router  = mux.NewRouter()
+		router  = mux.NewRouter().StrictSlash(true)
 		api     = router.NewRoute().PathPrefix("/api").Subrouter()
 		handler http.Handler
 
-		//chatter = &Chatter{}
+		chatter = &Chatter{}
 		channel = &Channel{}
-		//user    = &User{}
+		user    = &User{}
 	)
+
+	chatter.Register(api)
+	channel.Register(api)
+	user.Register(api)
+
 	api.Use(JSONMiddleWare)
-
-	// /api/
-	//chatter.Register(api)
-	// /api/ + /channel/
-	sub := channel.Register(api)
-	// /api/ + /channel/ + /user/
-	//sub = user.Register(sub)
-
-	handler = handlers.LoggingHandler(os.Stdout, sub)
+	handler = handlers.LoggingHandler(os.Stdout, router)
 
 	srv := http.Server{
 		Handler:      handler,

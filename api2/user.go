@@ -15,30 +15,22 @@ type User struct {
 
 // Register initializes the given router with user related routes returning the sub router
 // created to be used with other register methods
-func (c *User) Register(router *mux.Router) *mux.Router {
-	sub := router.
-		NewRoute().
-		PathPrefix(fmt.Sprintf("/user/{uid:%s}", UUIDPattern)).
-		Subrouter()
-
+func (c *User) Register(router *mux.Router) {
 	/*
 	 *DELETE /user/{user_id}/{channel_id}  -- Delete a channel
 	 *GET    /user/{user_id}/channels      -- Get all channels for the user
 	 */
+	sub := router.NewRoute().PathPrefix(fmt.Sprintf("/user/{uid:%s}", UUIDPattern)).Subrouter()
 
-	sub.
-		Handle(fmt.Sprintf(`/{cid:%s}`, UUIDPattern), c.setHandler(c.DeleteChannel))
+	sub.Path(fmt.Sprintf(`/{cid:%s}`, UUIDPattern)).Handler(c.setHandler(c.DeleteChannel))
+	sub.Path("/channels").Handler(c.setHandler(c.ListChannels))
 
-	sub.
-		Handle("/channels", c.setHandler(c.ListChannels))
-
-	return sub
 }
 
-func (c *User) setHandler(h http.HandlerFunc) *User {
-	u := c
-	u.Handler = h
-	return u
+func (c User) setHandler(h http.HandlerFunc) http.Handler {
+	n := c
+	n.Handler = h
+	return &n
 }
 
 func (c *User) ServeHTTP(w http.ResponseWriter, r *http.Request) {

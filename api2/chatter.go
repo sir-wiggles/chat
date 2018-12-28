@@ -1,6 +1,7 @@
 package main
 
 import (
+	"log"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -12,26 +13,24 @@ type Chatter struct {
 }
 
 // Register initializes the given router with chatter related operations
-func (c *Chatter) Register(router *mux.Router) *mux.Router {
-	sub := router.NewRoute().PathPrefix("/").Subrouter()
+func (c *Chatter) Register(router *mux.Router) {
 
-	sub.Handle("/ws", c.setHandler(c.WebSocket)).Methods("GET")
+	// This line will prevent middleware from being used if channter is registered first
+	sub := router.NewRoute().PathPrefix("/test").Subrouter()
 
-	sub.Handle("/status", c.setHandler(c.Status)).Methods("GET")
-
-	sub.Handle("/test", c.setHandler(c.Test)).Methods("POST", "GET")
-
-	return sub
+	sub.Path("/ws").Handler(c.setHandler(c.WebSocket)).Methods("GET")
+	sub.Path("/status").Handler(c.setHandler(c.Status)).Methods("GET")
+	sub.Path("/test").Handler(c.setHandler(c.Test)).Methods("POST", "GET")
 }
 
 func (c *Chatter) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	c.Handler(w, r)
 }
 
-func (c *Chatter) setHandler(h http.HandlerFunc) *Chatter {
-	u := c
-	u.Handler = h
-	return u
+func (c Chatter) setHandler(h http.HandlerFunc) http.Handler {
+	n := c
+	n.Handler = h
+	return &n
 }
 
 // WebSocket handles upgrading the websocket connection and registering the client to chatter
@@ -49,6 +48,7 @@ func (c *Chatter) Test(w http.ResponseWriter, r *http.Request) {
 	payload := &testPayload{}
 	err := ValidateBody(payload, r.Body)
 	if err != nil {
+		log.Println("ValidationErrors", err)
 		w.(*ResponseWriter).JSON(err)
 		return
 	}
