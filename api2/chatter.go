@@ -57,9 +57,8 @@ func (c *Chatter) Test(w http.ResponseWriter, r *http.Request) {
 
 // Status just returns a OK as long as the server is up
 func (c *Chatter) Status(w http.ResponseWriter, r *http.Request) {
-	w.(*ResponseWriter).JSON(struct {
-		Status string `json:"status"`
-	}{
-		"OK",
-	})
+	var (
+		rw = w.(*ResponseWriter)
+	)
+	rw.JSON("OK")
 }

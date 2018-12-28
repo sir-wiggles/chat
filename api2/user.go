@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gorilla/mux"
@@ -8,22 +9,28 @@ import (
 
 // User handles all user related operations that the API can use
 type User struct {
-	Handler http.HandlerFunc
+	Handler  http.HandlerFunc
+	database DatabaseController
 }
 
 // Register initializes the given router with user related routes returning the sub router
 // created to be used with other register methods
 func (c *User) Register(router *mux.Router) *mux.Router {
-	sub := router.NewRoute().PathPrefix("/users").Subrouter()
+	sub := router.
+		NewRoute().
+		PathPrefix(fmt.Sprintf("/user/{uid:%s}", UUIDPattern)).
+		Subrouter()
 
-	// Add users to a channel
-	sub.Handle("/", c.setHandler(c.Add)).Methods("PUT")
+	/*
+	 *DELETE /user/{user_id}/{channel_id}  -- Delete a channel
+	 *GET    /user/{user_id}/channels      -- Get all channels for the user
+	 */
 
-	// Get all users for a channel
-	sub.Handle("/", c.setHandler(c.List)).Methods("GET")
+	sub.
+		Handle(fmt.Sprintf(`/{cid:%s}`, UUIDPattern), c.setHandler(c.DeleteChannel))
 
-	// Delete users from a channel
-	sub.Handle("/", c.setHandler(c.Delete)).Methods("DELETE")
+	sub.
+		Handle("/channels", c.setHandler(c.ListChannels))
 
 	return sub
 }
@@ -38,42 +45,59 @@ func (c *User) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	c.Handler(w, r)
 }
 
-type addUsersPayload struct {
-	ID      string   `json:"id"      validate:"required,uuid"`
-	Owner   string   `json:"owner"   validate:"required,uuid"`
-	Members []string `json:"members" validate:"required,gt=0,dive,uuid"`
+type deleteChannelPayload struct {
+	Owner    string   `json:"owner" validate:"required,uuid"`
+	Channels []string `json:"channels" validate:"required,dive,uuid"`
 }
 
-// Add will add a user to the channel members set
-func (c *User) Add(w http.ResponseWriter, r *http.Request) {
-	var payload = &addUsersPayload{}
+// DeleteChannel will remove a channel.  Can only be removed by the owner
+func (c *User) DeleteChannel(w http.ResponseWriter, r *http.Request) {
+	var (
+		payload = &deleteChannelPayload{}
+		rw      = w.(*ResponseWriter)
+	)
 	if err := ValidateBody(payload, r.Body); err != nil {
-		w.(*ResponseWriter).JSON(err)
+		rw.JSON(err)
+		return
 	}
+
+	var channels = convertChannels(payload.Channels)
+
+	var info = &ChannelInfo{
+		Owner:    payload.Owner,
+		Channels: channels,
+	}
+
+	if err := c.database.DeleteChannels(info); err != nil {
+		rw.JSON(err)
+		return
+	}
+	rw.JSON("OK")
 }
 
-type listUsersPayload struct {
-	ID string `json:"id" validate:"required,uuid"`
+type listChannelPayload struct {
+	Owner string `json:"owner" validate:"required,uuid"`
 }
 
-// List gets all the users for a given channel.
-func (c *User) List(w http.ResponseWriter, r *http.Request) {
-	var payload = &listUsersPayload{}
+// ListChannels will get all the channels for a user
+func (c *User) ListChannels(w http.ResponseWriter, r *http.Request) {
+	var (
+		payload = &listChannelPayload{}
+		rw      = w.(*ResponseWriter)
+	)
 	if err := ValidateBody(payload, r.Body); err != nil {
-		w.(*ResponseWriter).JSON(err)
+		rw.JSON(err)
+		return
 	}
-}
 
-type deleteUsersPayload struct {
-	ID      string   `json:"id"      validate:"required,uuid"`
-	Owner   string   `json:"owner"   validate:"required,uuid"`
-	Members []string `json:"members" validate:"required,gt=0,dive,uuid"`
-}
-
-// Delete removes a user from a given channel.  Only the owner of the channel may remove a user
-func (c *User) Delete(w http.ResponseWriter, r *http.Request) {
-	var payload = &deleteUsersPayload{}
-	if err := ValidateBody(payload, r.Body); err != nil {
-		w.(*ResponseWriter).JSON(err)
+	var info = &ChannelInfo{
+		Owner: payload.Owner,
 	}
+
+	if err := c.database.ListChannels(info); err != nil {
+		rw.JSON(err)
+		return
+	}
+	rw.JSON(info)
+
 }

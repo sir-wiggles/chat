@@ -30,23 +30,22 @@ func main() {
 		address = fmt.Sprintf("%s:%s", host, port)
 		router  = mux.NewRouter()
 		api     = router.NewRoute().PathPrefix("/api").Subrouter()
-		sub     *mux.Router
 		handler http.Handler
 
-		chatter = &Chatter{}
+		//chatter = &Chatter{}
 		channel = &Channel{}
-		user    = &User{}
+		//user    = &User{}
 	)
 	api.Use(JSONMiddleWare)
 
 	// /api/
-	sub = chatter.Register(api)
+	//chatter.Register(api)
 	// /api/ + /channel/
-	sub = channel.Register(api)
+	sub := channel.Register(api)
 	// /api/ + /channel/ + /user/
-	sub = user.Register(sub)
+	//sub = user.Register(sub)
 
-	handler = handlers.LoggingHandler(os.Stdout, router)
+	handler = handlers.LoggingHandler(os.Stdout, sub)
 
 	srv := http.Server{
 		Handler:      handler,

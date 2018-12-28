@@ -7,14 +7,10 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/google/uuid"
 	"github.com/gorilla/mux"
 	. "github.com/onsi/gomega"
 )
-
-func setupChannelTest() *httptest.Server {
-
-	return httptest.NewServer(handler)
-}
 
 var ttAddChannel = []struct {
 	name string
@@ -30,8 +26,8 @@ var ttAddChannel = []struct {
 		name: "passes with valid fields",
 		body: bytes.NewBufferString(
 			fmt.Sprintf(`{"id": "%s", "owner": "%s", "name": "%s"}`,
-				UUIDRecal(0),
-				UUIDRecal(1),
+				UUIDRecal("id-1"),
+				UUIDRecal("owner-1"),
 				"ch-name",
 			)),
 		code: http.StatusOK,
@@ -46,10 +42,7 @@ func TestAddChannel(t *testing.T) {
 				channel = &Channel{}
 				router  = mux.NewRouter()
 				handler = channel.Register(router)
-				ctrl    = gomock.NewController(t)
-				mdb     = NewMockDatabaseController(ctrl)
 			)
-			channel.database = mdb
 
 			handler.Use(JSONMiddleWare)
 			server := httptest.NewServer(handler)
@@ -64,10 +57,26 @@ func TestAddChannel(t *testing.T) {
 			g.Expect(err).ShouldNot(HaveOccurred())
 			g.Expect(rsp.StatusCode).Should(Equal(tt.code))
 
-			ci := &ChannelInfo{}
-			mdb.EXPECT().CreateChannel(ci)
-
 		})
 	}
 
+}
+
+var _uuids = map[string]string{}
+
+func UUIDRecal(keys ...string) string {
+
+	if len(keys) == 0 {
+		return uuid.New().String()
+	}
+
+	key := keys[0]
+
+	if value, ok := _uuids[key]; ok {
+		return value
+	}
+
+	_uuids[key] = uuid.New().String()
+
+	return _uuids[key]
 }

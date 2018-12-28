@@ -34,9 +34,17 @@ func (w *ResponseWriter) Write(p []byte) (int, error) {
 // header will be set to StatusInternalServerError upon an error
 func (w *ResponseWriter) JSON(v interface{}, status ...int) error {
 
-	var code int
+	var code = http.StatusOK
+	if len(status) > 1 {
+		code = status[0]
+	}
 
 	switch v.(type) {
+	case string:
+		v = struct {
+			Message string `json:"message"`
+		}{v.(string)}
+
 	case validator.ValidationErrors:
 		code = http.StatusBadRequest
 
@@ -47,19 +55,13 @@ func (w *ResponseWriter) JSON(v interface{}, status ...int) error {
 		v = struct {
 			Error map[string]string `json:"error"`
 		}{errs}
-	case error:
 
+	case error:
 		code = http.StatusInternalServerError
 		v = struct {
 			Error string `json:"error"`
 		}{v.(error).Error()}
 
-	default:
-		code = http.StatusOK
-	}
-
-	if len(status) > 1 {
-		code = status[0]
 	}
 
 	w.Header().Set("Content-Type", "application/json")
