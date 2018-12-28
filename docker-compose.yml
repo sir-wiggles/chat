@@ -50,28 +50,28 @@ services:
       POSTGRES_USER: admin
       POSTGRES_PASS: admin
 
-  #cassandra-1:
-  #  image: cassandra:3.11.3
-  #  ports:
-  #    - "9042:9042"
-  #  volumes:
-  #    - cassandra-data:/var/lib/cassandra
-
-  cassandra-seed:
-    container_name: cassandra-seed-node
+  cassandra:
     image: cassandra:3.11.3
     ports:
-      - "9042:9042"   # Native transport
-      - "7199:7199"   # JMX
-      - "9160:9160"   # Thrift clients
+      - "9042:9042"
+    volumes:
+      - cassandra-data:/var/lib/cassandra
 
-  cassandra-node-1:
-    image: cassandra:3.11.3
-    command: /bin/bash -c "echo 'Waiting for seed node' && sleep 30 && /docker-entrypoint.sh cassandra -f"
-    environment:
-      - "CASSANDRA_SEEDS=cassandra-seed-node"
-    depends_on:
-      - "cassandra-seed"
+  #cassandra-seed:
+  #  container_name: cassandra-seed-node
+  #  image: cassandra:3.11.3
+  #  ports:
+  #    - "9042:9042"   # Native transport
+  #    - "7199:7199"   # JMX
+  #    - "9160:9160"   # Thrift clients
+
+  #cassandra-node-1:
+  #  image: cassandra:3.11.3
+  #  command: /bin/bash -c "echo 'Waiting for seed node' && sleep 30 && /docker-entrypoint.sh cassandra -f"
+  #  environment:
+  #    - "CASSANDRA_SEEDS=cassandra-seed-node"
+  #  depends_on:
+  #    - "cassandra-seed"
 
 
 volumes:

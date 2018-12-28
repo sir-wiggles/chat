@@ -8,18 +8,19 @@ import (
 	"time"
 
 	jwt "github.com/dgrijalva/jwt-go"
+	"github.com/sir-wiggles/chat/api/cassandra"
 	"github.com/sir-wiggles/chat/api/postgres"
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 )
 
 type Authentication struct {
-	db      postgres.Controller
+	db      cassandra.Controller
 	handler http.HandlerFunc
 	google  *oauth2.Config
 }
 
-func NewAuthenticationController(db postgres.Controller) *Authentication {
+func NewAuthenticationController(db cassandra.Controller) *Authentication {
 	googleConfig := &oauth2.Config{
 		ClientID:     googleClientID,
 		ClientSecret: googleClientSecret,
@@ -67,18 +68,16 @@ type AuthResponse struct {
 
 func (c Authentication) Google(w http.ResponseWriter, r *http.Request) {
 
-	var (
-		googleAuthRequest = GoogleAuthRequest{}
-		googleUserInfo    = postgres.UserModel{}
-	)
+	// Exchange code for token
+	var gar = GoogleAuthRequest{}
 
 	defer r.Body.Close()
-	if err := json.NewDecoder(r.Body).Decode(&googleAuthRequest); err != nil {
+	if err := json.NewDecoder(r.Body).Decode(&gar); err != nil {
 		RespondWithJSON(w, http.StatusInternalServerError, err)
 		return
 	}
 
-	token, err := c.google.Exchange(oauth2.NoContext, googleAuthRequest.Code)
+	token, err := c.google.Exchange(oauth2.NoContext, gar.Code)
 	if err != nil {
 		RespondWithJSON(w, http.StatusUnauthorized, err)
 		return
@@ -89,23 +88,28 @@ func (c Authentication) Google(w http.ResponseWriter, r *http.Request) {
 		RespondWithJSON(w, http.StatusInternalServerError, err)
 	}
 
+	// Register the user in the system
+	var gui = postgres.UserModel{}
+
 	defer resp.Body.Close()
-	if err := json.NewDecoder(resp.Body).Decode(&googleUserInfo); err != nil {
+	if err := json.NewDecoder(resp.Body).Decode(&gui); err != nil {
 		RespondWithJSON(w, http.StatusInternalServerError, err)
 		return
 	}
 
-	if err := c.db.GetOrCreateUser(&googleUserInfo); err != nil {
+	user, err := c.db.GetUser(gui.GID, gui.Name, gui.Picture)
+	if err != nil {
 		RespondWithJSON(w, http.StatusInternalServerError, err)
 		return
 	}
 
+	// Create a token for auth
 	claims := customJWTClaims{
 		jwt.StandardClaims{
 			ExpiresAt: time.Now().Add(time.Hour * 24).Unix(),
-			Issuer:    "chat",
+			Issuer:    "chatter",
 		},
-		googleUserInfo,
+		gui,
 	}
 
 	jwtToken := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)

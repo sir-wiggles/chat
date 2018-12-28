@@ -2,6 +2,7 @@ package main
 
 import (
 	"github.com/gorilla/websocket"
+	"github.com/sir-wiggles/chat/api/structs"
 )
 
 //Client is created for every websocket connection to the server
@@ -10,18 +11,17 @@ type Client struct {
 	name    string
 	picture string
 	manager *ClientManager
-	send    chan *Message
+	send    chan *structs.Message
 	socket  *websocket.Conn
 }
 
 // NewClient returns a new client with the given manager and socket connection
-func NewClient(manager *ClientManager, socket *websocket.Conn, id, name, picture string) *Client {
+func NewClient(socket *websocket.Conn, id, name, picture string) *Client {
 	client := &Client{
 		id:      id,
 		name:    name,
 		picture: picture,
-		manager: manager,
-		send:    make(chan *Message),
+		send:    make(chan *structs.Message),
 		socket:  socket,
 	}
 
@@ -43,7 +43,7 @@ func (client *Client) read() {
 		if err != nil {
 			break
 		}
-		client.manager.broadcast <- NewMessage(client, string(data))
+		client.manager.broadcast <- structs.NewMessage(string(data))
 	}
 }
 

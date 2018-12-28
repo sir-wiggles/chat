@@ -11,6 +11,7 @@ DOCKER_NETWOR=chat_default
 MIGRATION_DIR=/migrations
 DATABASE=postgres://admin:admin@postgres:5432/chat?sslmode=disable
 POSTGRES_SERVICE_NAME=postgres
+CASSANDRA_SERVICE_NAME=cassandra
 
 SERVICES = api web
 DOCKER_BUILD_TARGETS = $(foreach service, $(SERVICES), docker-build-$(service))
@@ -56,6 +57,11 @@ ifeq ($(shell docker-compose ps | grep $(PROJECT_NAME)_$(POSTGRES_SERVICE_NAME) 
 endif
 	docker-compose exec $(POSTGRES_SERVICE_NAME) psql -U admin -h localhost -d chat
 
+cqlsh:
+ifeq ($(shell docker-compose ps | grep $(PROJECT_NAME)_$(CASSANDRA_SERVICE_NAME) | wc -l), 0)
+	docker-compose up -d $(CASSANDRA_SERVICE_NAME)
+endif
+	docker-compose exec $(CASSANDRA_SERVICE_NAME) cqlsh
 
 build-web:
 	rm -rf ./api/static

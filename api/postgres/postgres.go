@@ -78,12 +78,12 @@ func (db *Postgres) GetOrCreateUser(user *UserModel) error {
 			) RETURNING *
 		)
 		SELECT
-			FALSE as existing
+			uuid, FALSE as existing
 		FROM
 			row
 		UNION
 		SELECT
-			TRUE as existing
+			uuid, TRUE as existing
 		FROM
 			users
 		WHERE

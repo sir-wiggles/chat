@@ -3,6 +3,7 @@ node_modules
 /dist
 
 /api/vendor
+/api2/vendor
 /api/static
 
 yarn.lock

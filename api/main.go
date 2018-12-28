@@ -86,7 +86,7 @@ func main() {
 	}
 
 	var (
-		auth    = NewAuthenticationController(db)
+		auth    = NewAuthenticationController(cass)
 		router  = mux.NewRouter()
 		chat    = NewClientManager(cass)
 		address = fmt.Sprintf("%s:%s", host, port)
